@@ -30,7 +30,7 @@ bot.onText(/\/start/, async (msg) => {
           transaction_amount: 107, // Precio mensual en MXN (cámbialo si deseas)
           currency_id: "MXN"
         },
-        back_url: "back_url: "https://lishotwife-bot.onrender.com","
+        back_url: "https://lishotwife-bot.onrender.com","
       }
     });
 
