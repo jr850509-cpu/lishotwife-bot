@@ -23,7 +23,7 @@ bot.onText(/\/start/, async (msg) => {
       body: {
         reason: "Suscripción VIP Lishotwife",
         external_reference: chatId.toString(),
-        payer_email: "cliente@email.com",
+        payer_email: "jr850509@gmail.com",
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
