@@ -80,7 +80,7 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
-  res.sendStatus(200);
+  res.sendStatus(107);
 });
 
 const PORT = process.env.PORT || 3000;
