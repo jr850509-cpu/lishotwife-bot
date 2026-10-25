@@ -27,7 +27,7 @@ bot.onText(/\/start/, async (msg) => {
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: 200, // Precio mensual en MXN (cámbialo si deseas)
+          transaction_amount: 107, // Precio mensual en MXN (cámbialo si deseas)
           currency_id: "MXN"
         },
         back_url: "https://t.me/lishotwife_VIP_bot"
