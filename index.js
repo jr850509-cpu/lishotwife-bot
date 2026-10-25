@@ -40,7 +40,7 @@ bot.onText(/\/start/, async (msg) => {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
-          [{ text: "💳 Suscribirme ($200 MXN/mes)", url: initPoint }]
+          [{ text: "💳 Suscribirme ($107 MXN/mes)", url: initPoint }]
         ]
       }
     });
