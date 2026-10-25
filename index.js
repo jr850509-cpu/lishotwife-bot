@@ -1,89 +1,85 @@
-const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const { MercadoPagoConfig, PreApproval } = require('mercadopago');
+const express = require('express');
 
+// Configuración del servidor Express para Render (necesario para mantener el servicio activo y recibir webhooks)
 const app = express();
 app.use(express.json());
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHAT_ID = process.env.CHAT_ID; // ID del grupo privado (-100xxxxxxx)
-const MP_TOKEN = process.env.MP_ACCESS_TOKEN;
-const SERVER_URL = process.env.SERVER_URL; // URL que te dará Render
+const PORT = process.env.PORT || 3000;
 
-const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-const client = new MercadoPagoConfig({ accessToken: MP_TOKEN });
-const preapproval = new PreApproval(client);
+// Credenciales y Tokens
+const TELEGRAM_TOKEN = '8643196780:AAFebIUz869JdePz5XkqnVe2FE2V38UsmIk';
+const TARGET_CHAT_ID = '-1008903979668';
+
+// Inicializar Bot de Telegram
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+
+// Inicializar cliente de Mercado Pago (reemplaza con tu Access Token de producción si es necesario)
+// Si usas variables de entorno, asegúrate de configurarlas en Render.
+const client = new MercadoPagoConfig({ 
+  accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-tu-token-aqui' 
+});
+
+// Ruta de prueba para el navegador (Health Check de Render)
+app.get('/', (req, res) => {
+  res.send('Bot de Telegram y Webhook de Mercado Pago funcionando correctamente.');
+});
 
 // Comando /start en Telegram
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
+  const userName = msg.from.first_name || 'Amigo(a)';
 
   try {
-    const preference = await preapproval.create({
+    // Generador de enlace de suscripción recurrente en Mercado Pago
+    // Nota: 'payer_email' es requerido por la API de preaprobaciones (preapproval)
+    const preApproval = new PreApproval(client);
+    
+    const subscriptionData = {
       body: {
-        reason: "Suscripción VIP Lishotwife",
-        external_reference: chatId.toString(),
-        
+        reason: "Suscripción Mensual VIP - Lishotwife",
         auto_recurring: {
           frequency: 1,
           frequency_type: "months",
-          transaction_amount: 107, // Precio mensual en MXN (cámbialo si deseas)
+          transaction_amount: 107,
           currency_id: "MXN"
         },
-        back_url: "https://lishotwife-bot.onrender.com","
+        back_url: "https://lishotwife-bot.onrender.com",
+        payer_email: "jr850509@gmail.com" // Email requerido para evitar errores de validación en MP
       }
-    });
+    };
 
-    const initPoint = preference.init_point;
+    // Creando la preferencia de suscripción
+    const response = await preApproval.create(subscriptionData);
+    const paymentUrl = response.init_point;
 
-    bot.sendMessage(chatId, "🔥 **Bienvenido al VIP de Lishotwife** 🔥\n\nAcceso exclusivo mensual. Haz clic en el botón de abajo para suscribirte:", {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "💳 Suscribirme ($107 MXN/mes)", url: initPoint }]
-        ]
-      }
-    });
+    const welcomeMessage = `¡Hola, ${userName}! 🤖 Bienvenid(a).\n\nPara acceder al contenido exclusivo y al grupo privado, adquiere tu suscripción mensual por solo $107 MXN (cobro automático cada mes).\n\nHaz clic en el siguiente enlace seguro para pagar:\n${paymentUrl}`;
+
+    await bot.sendMessage(chatId, welcomeMessage);
   } catch (error) {
-    console.error("Error creando suscripción:", error);
-    bot.sendMessage(chatId, "Ocurrió un error al generar tu link de pago. Inténtalo de nuevo más tarde.");
+    console.error('Error al generar el link de pago:', error);
+    await bot.sendMessage(chatId, 'Ocurrió un error al generar tu enlace de pago. Por favor, intenta más tarde.');
   }
 });
 
-// Webhook para recibir notificaciones de pago de Mercado Pago
+// Endpoint para recibir Webhooks de Mercado Pago (Pagos y Suscripciones)
 app.post('/webhook', async (req, res) => {
-  const { type, action, data } = req.body;
+  const event = req.body;
+  console.log('Webhook recibido:', JSON.stringify(event));
 
-  if (type === 'subscription_preapproval' || action === 'created') {
-    try {
-      const subId = data.id;
-      const subscriptionData = await preapproval.get({ id: subId });
-      const userTelegramId = subscriptionData.external_reference;
-      const status = subscriptionData.status;
-
-      if (status === 'authorized' && userTelegramId) {
-        // Generar enlace de invitación de un solo uso
-        const inviteLink = await bot.createChatInviteLink(CHAT_ID, {
-          member_limit: 1,
-          expire_date: Math.floor(Date.now() / 1000) + 86400 // Expira en 24h
-        });
-
-        bot.sendMessage(userTelegramId, `🎉 ¡Pago de suscripción verificado!\n\nÚnete aquí a tu grupo exclusivo:\n${inviteLink.invite_link}`);
-      } else if (status === 'cancelled' || status === 'paused') {
-        // Si cancela la suscripción, se expulsa del grupo
-        await bot.banChatMember(CHAT_ID, userTelegramId);
-        await bot.unbanChatMember(CHAT_ID, userTelegramId); // Desbloquea para que pueda volver a pagar si quiere
-        bot.sendMessage(userTelegramId, "Tu suscripción ha finalizado y el acceso al grupo VIP se ha revocado.");
-      }
-    } catch (err) {
-      console.error("Error procesando webhook:", err);
-    }
+  try {
+    // Aquí puedes manejar la lógica cuando el pago se aprueba para generar el enlace de invitación a Telegram:
+    // bot.createChatInviteLink(TARGET_CHAT_ID, { member_limit: 1, expire_date: ... })
+    
+    res.status(200).send('Webhook procesado');
+  } catch (error) {
+    console.error('Error procesando webhook:', error);
+    res.status(500).send('Error interno');
   }
-
-  res.sendStatus(107);
 });
 
-const PORT = process.env.PORT || 3000;
+// Iniciar servidor Express
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
