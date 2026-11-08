@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const { MercadoPagoConfig, PreApproval } = require('mercadopago');
 const express = require('express');
 
-// Configuración del servidor Express para Render (necesario para mantener el servicio activo y recibir webhooks)
+// Configuración del servidor Express para Render
 const app = express();
 app.use(express.json());
 
@@ -15,8 +15,7 @@ const TARGET_CHAT_ID = '-1008903979668';
 // Inicializar Bot de Telegram
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
-// Inicializar cliente de Mercado Pago (reemplaza con tu Access Token de producción si es necesario)
-// Si usas variables de entorno, asegúrate de configurarlas en Render.
+// Inicializar cliente de Mercado Pago
 const client = new MercadoPagoConfig({ 
   accessToken: process.env.MP_ACCESS_TOKEN || 'APP_USR-tu-token-aqui' 
 });
@@ -26,14 +25,12 @@ app.get('/', (req, res) => {
   res.send('Bot de Telegram y Webhook de Mercado Pago funcionando correctamente.');
 });
 
-// Comando /start en Telegram
-bot.onText(/\/start/, async (msg) => {
+// Escuchador mejorado para el comando /start (responde SIEMPRE que se envíe)
+bot.onText(/^\/start$/i, async (msg) => {
   const chatId = msg.chat.id;
   const userName = msg.from.first_name || 'Amigo(a)';
 
   try {
-    // Generador de enlace de suscripción recurrente en Mercado Pago
-    // Nota: 'payer_email' es requerido por la API de preaprobaciones (preapproval)
     const preApproval = new PreApproval(client);
     
     const subscriptionData = {
@@ -46,11 +43,10 @@ bot.onText(/\/start/, async (msg) => {
           currency_id: "MXN"
         },
         back_url: "https://lishotwife-bot.onrender.com",
-        payer_email: "jr850509@gmail.com" // Email requerido para evitar errores de validación en MP
+        payer_email: "jr850509@gmail.com"
       }
     };
 
-    // Creando la preferencia de suscripción
     const response = await preApproval.create(subscriptionData);
     const paymentUrl = response.init_point;
 
@@ -63,15 +59,12 @@ bot.onText(/\/start/, async (msg) => {
   }
 });
 
-// Endpoint para recibir Webhooks de Mercado Pago (Pagos y Suscripciones)
+// Endpoint para recibir Webhooks de Mercado Pago
 app.post('/webhook', async (req, res) => {
   const event = req.body;
   console.log('Webhook recibido:', JSON.stringify(event));
 
   try {
-    // Aquí puedes manejar la lógica cuando el pago se aprueba para generar el enlace de invitación a Telegram:
-    // bot.createChatInviteLink(TARGET_CHAT_ID, { member_limit: 1, expire_date: ... })
-    
     res.status(200).send('Webhook procesado');
   } catch (error) {
     console.error('Error procesando webhook:', error);
