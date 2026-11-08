@@ -10,10 +10,13 @@ const PORT = process.env.PORT || 3000;
 
 // Credenciales y Tokens
 const TELEGRAM_TOKEN = '8643196780:AAFebIUz869JdePz5XkqnVe2FE2V38UsmIk';
-const TARGET_CHAT_ID = '-1008903979668';
 
-// Inicializar Bot de Telegram
+// Inicializar Bot de Telegram (con manejo de errores para evitar caídas)
 const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
+
+bot.on('polling_error', (error) => {
+  console.log('Error de Telegram (Polling):', error.code);
+});
 
 // Inicializar cliente de Mercado Pago
 const client = new MercadoPagoConfig({ 
@@ -25,7 +28,7 @@ app.get('/', (req, res) => {
   res.send('Bot de Telegram y Webhook de Mercado Pago funcionando correctamente.');
 });
 
-// Escuchador mejorado para el comando /start (responde SIEMPRE que se envíe)
+// Escuchador seguro para el comando /start
 bot.onText(/^\/start$/i, async (msg) => {
   const chatId = msg.chat.id;
   const userName = msg.from.first_name || 'Amigo(a)';
@@ -54,8 +57,8 @@ bot.onText(/^\/start$/i, async (msg) => {
 
     await bot.sendMessage(chatId, welcomeMessage);
   } catch (error) {
-    console.error('Error al generar el link de pago:', error);
-    await bot.sendMessage(chatId, 'Ocurrió un error al generar tu enlace de pago. Por favor, intenta más tarde.');
+    console.error('Error al generar el link de pago:', error.message || error);
+    await bot.sendMessage(chatId, 'Ocurrió un error al conectar con la pasarela de pagos. Por favor, intenta de nuevo en un momento.');
   }
 });
 
@@ -63,13 +66,7 @@ bot.onText(/^\/start$/i, async (msg) => {
 app.post('/webhook', async (req, res) => {
   const event = req.body;
   console.log('Webhook recibido:', JSON.stringify(event));
-
-  try {
-    res.status(200).send('Webhook procesado');
-  } catch (error) {
-    console.error('Error procesando webhook:', error);
-    res.status(500).send('Error interno');
-  }
+  res.status(200).send('Webhook procesado');
 });
 
 // Iniciar servidor Express
